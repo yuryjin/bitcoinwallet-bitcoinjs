@@ -1,20 +1,57 @@
-const http = require('http');
-const fs = require('fs');
+var http = require('http');
+var url = require('url');
+var fs = require('fs');
+var path = require('path');
 
-const server = http.createServer();
+const mimetypes = {
+    'html': 'text/html',
+    'css': 'text/css',
+    'js': 'text/javascript',
+    'png': 'image/png',
+    'jpeg': 'image/jpeg',
+    'jpg': 'image/jpg'
+};
 
-server.on('request', (req, res) => {
-	res.writeHead(200, {'Content-Type': 'text/html'})
-	fs.readFile('./main.html', null, function(error, data) {
-		if (error) {
-			res.writeHead(404);
-			res.write('File not found!');
-		}
-		else {
-			res.write(data);
-		}
-		res.end();
-	})
+var portname = '127.0.0.1';
+var port = '3000';
+
+http.createServer((req, res) => {
+    var myuri = url.parse(req.url).pathname;
+    var filename = path.join(process.cwd(), unescape(myuri));
+    console.log('File you are looking for is:' + filename);
+    var loadFile;
+
+    try {
+        loadFile = fs.lstatSync(filename);
+    } catch (error) {
+        res.writeHead(404, {
+            "Content-Type": 'text/plain'
+        });
+        res.write('404 Internal Error');
+        res.end();
+        return;
+    }
+
+    if (loadFile.isFile()) {
+        var mimeType = mimetypes[path.extname(filename).split('.').reverse()[0]];
+        res.writeHead(200, {
+            "Content-Type": mimeType
+        });
+        var filestream = fs.createReadStream(filename);
+        filestream.pipe(res);
+    } else if (loadFile.isDirectory()) {
+        res.writeHead(302, {
+            'Location': 'main.html'
+        });
+        res.end();
+    } else {
+        res.writeHead(500, {
+            "Content-Type": 'text/plain'
+        });
+        res.write('500 Internal Error');
+        res.end();
+    }
+
+}).listen(port, portname, () => {
+    console.log(`Server is running on server http://${portname}:${port}`);
 });
-
-server.listen(3000, () => console.log('ok'));
